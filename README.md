@@ -18,18 +18,17 @@ Codefactor — локальный статический анализатор, �
 
 ## Установка
 
-Пакет устанавливается напрямую из публичного GitHub-репозитория. До регистрации в Packagist нужно подключить его через Composer VCS, как показано ниже. Готовый самостоятельный CLI также доступен в [релизах Codefactor](https://github.com/codefactor-app/core/releases).
+Пакет [codefactor/codefactor](https://packagist.org/packages/codefactor/codefactor) доступен в Packagist.
 
 Нужны PHP >=8.1 с OpenSSL, включённый `allow_url_fopen`, Composer >=2.2 и проект с `composer.json`.
 
 ```sh
-composer config repositories.codefactor vcs https://github.com/codefactor-app/php
-composer config allow-plugins.codefactor/codefactor true
 composer require --dev codefactor/codefactor
-./vendor/bin/codefactor --version
 ```
 
-Пакет устанавливается как dev-зависимость проекта. Composer регистрирует команду в `vendor/bin`; разрешение `allow-plugins` позволяет автоматически скачать анализатор. Закоммитьте `composer.json` и `composer.lock`, чтобы команда была доступна остальным участникам проекта.
+При первой установке Composer спросит, разрешить ли плагин `codefactor/codefactor`. Ответьте `y`: плагин автоматически скачает анализатор, а Composer сохранит разрешение в `composer.json`.
+
+Пакет устанавливается как dev-зависимость проекта; команда появляется в `vendor/bin`. Закоммитьте `composer.json` и `composer.lock`, чтобы остальные участники и CI могли выполнить `composer install` с теми же настройками.
 
 Альтернативный способ запуска: `composer exec -- codefactor scan .`.
 
@@ -40,6 +39,7 @@ composer require --dev codefactor/codefactor
 Из корня проекта выполните:
 
 ```sh
+./vendor/bin/codefactor --version
 ./vendor/bin/codefactor scan .
 ```
 

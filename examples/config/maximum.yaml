@@ -1,0 +1,138 @@
+# PHP: расширенный пример; пути, FQN и пороги адаптируйте под проект.
+config_version: 1
+languages:
+  enabled: [php]
+  extensions: {phtml: php}
+paths:
+  include: ["**"] # Все поддерживаемые файлы выбранного языка, включая корневые.
+  exclude:
+    - "**/test/**"
+    - "**/tests/**"
+    - "**/fixtures/**"
+    - "**/generated/**"
+    - "var/cache/**"
+vendor:
+  paths: ["vendor/**", "**/vendor/**"]
+  mode: collapsed
+  parse: lazy # none запрещает раскрытие зависимостей; full разбирает сразу.
+limits:
+  file_lines: {warn: 400, error: 800}
+  function_lines: {warn: 40, error: 100}
+  functions_per_file: {warn: 20, error: 40}
+  methods_per_class: {warn: 15, error: 30}
+  function_params: {warn: 4, error: 7}
+  cyclomatic_complexity: {warn: 10, error: 20}
+  types_per_file: {warn: 5, error: 10}
+  fields_per_class: {warn: 10, error: 20}
+  function_body_lines: {warn: 35, error: 90}
+  cognitive_complexity: {warn: 15, error: 30}
+  nesting_depth: {warn: 3, error: 5}
+  return_points: {warn: 4, error: 8}
+  inheritance_depth: {warn: 3, error: 5}
+  lcom4: {warn: 1, error: 3}
+  fan_in: {warn: 20, error: 40}
+  fan_out: {warn: 10, error: 20}
+  halstead_volume: {warn: 1000, error: 2000}
+  duplicate_functions: {warn: 0, error: 5}
+  module_cycle: {warn: 0, error: 0}
+  # Все числовые пороги — верхние границы. comment_ratio и
+  # maintainability_index не задают минимальную долю/минимальный индекс.
+  by_language:
+    php:
+      function_params: {warn: 5, error: 8}
+  by_path:
+    - glob: "src/legacy/**" # Замените на каталог существующего долга.
+      function_lines: {warn: 80, error: 160}
+      cyclomatic_complexity: {warn: 15, error: 30}
+  by_entity:
+    # Точный FQN из отчёта metrics; замените на реальную сущность.
+    'App\Service\Worker::run':
+      function_params: {warn: 6, error: 10}
+  aggregates:
+    "cyclomatic_complexity.p95": {warn: 12, error: 25}
+    "function_lines.avg": {warn: 30, error: 60}
+# Иллюстративные каталоги слоёв: замените под структуру своего проекта.
+sets:
+  domain: ["dir:src/Domain"]
+  infrastructure: ["dir:src/Infrastructure"]
+  application: ["set:domain", "set:infrastructure", "!glob:**/generated/**"]
+external:
+  capture_args: literal
+  max_arg_length: 160
+  redact: ['(?i)token=[^&\s]+', '(?i)password=[^&\s]+']
+  rules:
+    # Пример сторонней библиотеки; укажите цель вызова своей библиотеки.
+    - category: http
+      pattern: 'Acme\Http\Client::send*'
+      library: acme-http
+      operation: send
+  show_in_hidden_vendor: true # Зарегистрирован; отдельного эффекта пока нет.
+metrics:
+  count_implicit_receiver: false
+  count_variadic_parameters: true
+  count_private_methods: true
+  count_accessors: true
+  count_nested_functions: true
+  histogram_bins: 10
+graph:
+  max_implementations: 50
+algorithmic_complexity:
+  enabled: true
+  heuristics: true
+  unknown: info # warn/error требуют большей полноты статического анализа.
+  limits: {warn: "N", error: "N*log(N)"}
+  by_language:
+    php:
+      enabled: true
+      heuristics: true
+      unknown: info
+      limits: {warn: "N", error: "N*log(N)"}
+  by_path:
+    - glob: "src/legacy/**"
+      limits: {warn: "N^2", error: "N^3"}
+  by_entity:
+    'App\Service\Worker::run':
+      unknown: warn
+architecture:
+  enabled: true
+  profile: extended # strict — только циклы, явные границы и структурные копии.
+  disabled_rules: []
+  exclude:
+    - "**/test/**"
+    - "**/tests/**"
+    - "**/testing/**"
+    - "**/__tests__/**"
+    - "**/integration-tests/**"
+    - "**/fixtures/**"
+    - "**/__fixtures__/**"
+    - "**/generated/**"
+    - "**/migrations/**"
+    - "**/*.test.*"
+    - "**/*.spec.*"
+  rules:
+    arch_cycle: {}
+    arch_boundary: {}
+    arch_dry: {min_tokens: 100, min_statements: 5}
+    arch_srp: {min_methods: 8, min_group_methods: 3}
+    arch_ocp: {min_sites: 3, min_alternatives: 3}
+    arch_factory: {min_sites: 2, min_alternatives: 3}
+    arch_lsp: {}
+    arch_isp: {min_methods: 8, max_usage_ratio: 0.25}
+    arch_demeter: {}
+    arch_stability: {instability_delta: 0.3}
+  layers:
+    - name: domain
+      selectors: ["dir:src/Domain"]
+    - name: infrastructure
+      selectors: ["dir:src/Infrastructure"]
+  forbidden_dependencies:
+    - from: domain
+      to: infrastructure
+      principle: DIP
+  composition_roots: ["file:public/index.php"]
+  max_evidence: 50
+cache:
+  enabled: true
+  path: .analyzer-cache
+output:
+  formats: [console] # Для машинного stdout замените на [json].

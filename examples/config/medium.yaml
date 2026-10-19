@@ -1,0 +1,31 @@
+# PHP: повседневный анализ. Пороги можно адаптировать под проект.
+config_version: 1
+languages:
+  enabled: [php]
+paths:
+  include: ["**"] # Все поддерживаемые файлы выбранного языка, включая корневые.
+  exclude:
+    - "**/test/**"
+    - "**/tests/**"
+    - "**/fixtures/**"
+    - "**/generated/**"
+    - "var/cache/**"
+vendor:
+  paths: ["vendor/**", "**/vendor/**"]
+  mode: collapsed
+  parse: lazy # none запрещает раскрытие зависимостей; full разбирает сразу.
+limits:
+  file_lines: {warn: 400, error: 800}
+  function_lines: {warn: 40, error: 100}
+  functions_per_file: {warn: 20, error: 40}
+  methods_per_class: {warn: 15, error: 30}
+  function_params: {warn: 4, error: 7}
+  cyclomatic_complexity: {warn: 10, error: 20}
+architecture:
+  enabled: true
+  profile: strict
+cache:
+  enabled: true
+  path: .analyzer-cache
+output:
+  formats: [console] # Для машинного stdout замените на [json].

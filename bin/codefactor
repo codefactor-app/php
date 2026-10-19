@@ -1,0 +1,28 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/src/Installer.php';
+
+$binary = getenv('CODEFACTOR_BINARY') ?: Codefactor\Installer::binaryPath();
+if (!is_file($binary)) {
+    fwrite(STDERR, "Codefactor binary missing; run composer install with the Codefactor plugin enabled.\n");
+    exit(127);
+}
+$binary = realpath($binary) ?: $binary;
+$arguments = array_slice($argv, 1);
+
+// Replacing the process preserves terminal input, signals and exit status.
+if (PHP_OS_FAMILY !== 'Windows' && function_exists('pcntl_exec')) {
+    pcntl_exec($binary, $arguments);
+    fwrite(STDERR, "Cannot start Codefactor binary.\n");
+    exit(126);
+}
+
+$process = proc_open([$binary, ...$arguments], [STDIN, STDOUT, STDERR], $pipes, null, null, ['bypass_shell' => true]);
+if (!is_resource($process)) {
+    fwrite(STDERR, "Cannot start Codefactor binary.\n");
+    exit(126);
+}
+$status = proc_close($process);
+exit($status >= 0 ? $status : 1);

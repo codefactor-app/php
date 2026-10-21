@@ -61,7 +61,7 @@ final class Codefactor
 
     private function run(array $args): Result
     {
-        $binary = $this->binary ?? (getenv('CODEFACTOR_BINARY') ?: Installer::binaryPath());
+        $binary = $this->binary ?? Core::resolve(...Core::context($args));
         if (!is_file($binary)) { throw new \RuntimeException('Codefactor binary missing; run Composer with the Codefactor plugin enabled'); }
         $process = proc_open([$binary, ...$args], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, null, ['bypass_shell' => true]);
         if (!is_resource($process)) { throw new \RuntimeException('Cannot start Codefactor'); }

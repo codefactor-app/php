@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Codefactor;
 
+require_once __DIR__ . '/Core.php';
+
 final class Installer
 {
     public static function platform(): string
@@ -23,7 +25,7 @@ final class Installer
         return dirname(__DIR__) . '/libexec/codefactor' . (PHP_OS_FAMILY === 'Windows' ? '.exe' : '');
     }
 
-    private static function releaseBase(array $config, string $version): string
+    public static function releaseBase(array $config, string $version): string
     {
         $override = getenv('CODEFACTOR_RELEASE_BASE_URL');
         if ($version === 'latest' && !$override) {
@@ -33,20 +35,21 @@ final class Installer
         return str_contains($base, '{version}') ? str_replace('{version}', $version, $base) : $base . '/' . $version;
     }
 
-    public static function install(?string $token = null): string
+    public static function install(?string $token = null, ?string $version = null, ?string $destination = null, ?array $manifest = null): string
     {
         $root = dirname(__DIR__);
-        $destination = self::binaryPath();
+        $destination ??= self::binaryPath();
         if (!is_dir(dirname($destination)) && !mkdir(dirname($destination), 0755, true)) {
             throw new \RuntimeException('Cannot create Codefactor binary directory');
         }
-        $lock = fopen($root . '/libexec/.install.lock', 'c');
+        $lock = fopen(dirname($destination) . '/.install.lock', 'c');
         if ($lock === false || !flock($lock, LOCK_EX)) {
             throw new \RuntimeException('Cannot lock Codefactor installation');
         }
         $temporary = null;
         try {
             $config = json_decode(file_get_contents($root . '/release.json'), true, 512, JSON_THROW_ON_ERROR);
+            $version ??= getenv('CODEFACTOR_CORE_VERSION') !== false ? getenv('CODEFACTOR_CORE_VERSION') : $config['version'];
             $override = getenv('CODEFACTOR_BINARY');
             if ($override !== false && $override !== '') {
                 if (!is_file($override)) {
@@ -60,25 +63,27 @@ final class Installer
                 }
                 return $destination;
             }
+            if (!preg_match('/^(latest|[0-9]+\.[0-9]+\.[0-9]+)$/D', $version)) { throw new \RuntimeException('core.version must be latest or X.Y.Z'); }
             $platform = self::platform();
             if (!in_array($platform, $config['platforms'], true)) {
                 throw new \RuntimeException("No Codefactor release for $platform");
             }
-            $metadata = $root . '/libexec/codefactor.manifest.json';
-            $base = self::releaseBase($config, $config['version']);
+            $metadata = dirname($destination) . '/codefactor.manifest.json';
+            $base = self::releaseBase($config, $version);
             $token ??= getenv('CODEFACTOR_TOKEN') ?: null;
-            $manifest = json_decode(self::download("$base/manifest-$platform.json", $token, 65536), true, 512, JSON_THROW_ON_ERROR);
+            $manifest ??= json_decode(self::download("$base/manifest-$platform.json", $token, 65536), true, 512, JSON_THROW_ON_ERROR);
             $filename = "codefactor-$platform" . (PHP_OS_FAMILY === 'Windows' ? '.exe' : '');
+            $requested = $version;
             $version = $manifest['version'] ?? null;
             if (!is_string($version) || !preg_match('/^[0-9]+\.[0-9]+\.[0-9]+$/D', $version)
-                || ($config['version'] !== 'latest' && $version !== $config['version']) || ($manifest['platform'] ?? '') !== $platform
-                || ($manifest['file'] ?? '') !== $filename || !preg_match('/^[a-f0-9]{64}$/', $manifest['sha256'] ?? '')) {
+                || ($requested !== 'latest' && $version !== $requested) || ($manifest['platform'] ?? '') !== $platform
+                || ($manifest['file'] ?? '') !== $filename || !preg_match('/^[a-f0-9]{64}$/D', $manifest['sha256'] ?? '') || !is_int($manifest['size'] ?? null) || $manifest['size'] <= 0 || $manifest['size'] > 128 * 1024 * 1024) {
                 throw new \RuntimeException('Invalid Codefactor release manifest');
             }
             if (is_file($destination) && filesize($destination) === ($manifest['size'] ?? -1)
                 && hash_file('sha256', $destination) === $manifest['sha256']) {
                 chmod($destination, 0755);
-                file_put_contents($metadata, json_encode($manifest, JSON_THROW_ON_ERROR));
+                if (file_put_contents($metadata, json_encode($manifest, JSON_THROW_ON_ERROR)) === false) { throw new \RuntimeException('Cannot write Codefactor manifest'); }
                 return $destination;
             }
             $base = self::releaseBase($config, $version);
@@ -91,7 +96,7 @@ final class Installer
                 || !rename($temporary, $destination)) {
                 throw new \RuntimeException('Cannot install Codefactor binary');
             }
-            file_put_contents($metadata, json_encode($manifest, JSON_THROW_ON_ERROR));
+            if (file_put_contents($metadata, json_encode($manifest, JSON_THROW_ON_ERROR)) === false) { throw new \RuntimeException('Cannot write Codefactor manifest'); }
             return $destination;
         } finally {
             if ($temporary !== null && is_file($temporary)) {
@@ -102,7 +107,7 @@ final class Installer
         }
     }
 
-    private static function download(string $url, ?string $token, int $limit): string
+    public static function download(string $url, ?string $token, int $limit): string
     {
         if (!filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN)) {
             throw new \RuntimeException('Enable PHP allow_url_fopen to download Codefactor releases, or set CODEFACTOR_BINARY to a local binary');

@@ -28,6 +28,6 @@ final class ComposerPlugin implements PluginInterface, EventSubscriberInterface
     public function installBinary(): void
     {
         $this->io->writeError('Installing Codefactor core binary...');
-        Installer::install();
+        Core::update();
     }
 }

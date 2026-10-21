@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/src/Installer.php';
 
-$binary = getenv('CODEFACTOR_BINARY') ?: Codefactor\Installer::binaryPath();
+try {
+    if (($argv[1] ?? '') === 'core') { exit(Codefactor\Core::updateCommand(array_slice($argv, 2))); }
+    $binary = Codefactor\Core::resolve(...Codefactor\Core::context(array_slice($argv, 1)));
+} catch (Throwable $error) { fwrite(STDERR, $error->getMessage() . "\n"); exit($error->getCode() === 3 ? 3 : 1); }
 if (!is_file($binary)) {
     fwrite(STDERR, "Codefactor binary missing; run composer install with the Codefactor plugin enabled.\n");
     exit(127);

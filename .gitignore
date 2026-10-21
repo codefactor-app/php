@@ -16,3 +16,6 @@
 /.codex/
 
 .DS_Store
+
+# Independently installed project engines
+.codefactor/core/

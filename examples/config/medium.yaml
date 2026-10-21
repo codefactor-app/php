@@ -1,26 +1,44 @@
-# PHP: повседневный анализ. Пороги можно адаптировать под проект.
+# PHP: повседневный анализ без привязки к фреймворку или CMS.
+# Пороги можно адаптировать под проект.
 config_version: 1
 languages:
   enabled: [php]
 paths:
   include: ["**"] # Все поддерживаемые файлы выбранного языка, включая корневые.
   exclude:
+    # Тесты и фикстуры. Globs чувствительны к регистру: PHPUnit и phpspec
+    # используют tests/ и spec/, пакеты и бандлы часто Tests/ и Fixtures/.
     - "**/test/**"
     - "**/tests/**"
+    - "**/Tests/**"
+    - "**/spec/**"
     - "**/fixtures/**"
+    - "**/Fixtures/**"
+    - "**/*Test.php"
+    # Сгенерированный код, миграции и файлы IDE.
     - "**/generated/**"
-    - "var/cache/**"
+    - "**/migrations/**"
+    - ".phpstorm.meta.php"
+    # Каталоги кеша и сборки фреймворков смотрите в symfony.yaml и laravel.yaml.
 vendor:
-  paths: ["vendor/**", "**/vendor/**"]
+  # Список заменяет defaults движка; node_modules нужен проектам с фронтендом.
+  paths: ["vendor/**", "**/vendor/**", "node_modules/**"]
   mode: collapsed
   parse: lazy # none запрещает раскрытие зависимостей; full разбирает сразу.
 limits:
+  # Первые шесть порогов совпадают с defaults движка и приведены для настройки.
   file_lines: {warn: 400, error: 800}
   function_lines: {warn: 40, error: 100}
   functions_per_file: {warn: 20, error: 40}
   methods_per_class: {warn: 15, error: 30}
   function_params: {warn: 4, error: 7}
   cyclomatic_complexity: {warn: 10, error: 20}
+  # Структурные пороги: PSR-1 и PSR-4 ожидают один класс на файл; цикл
+  # между namespace попадает в отчёт и блокирует CI только с --fail-on-warn.
+  types_per_file: {warn: 1, error: 3}
+  nesting_depth: {warn: 4, error: 6}
+  cognitive_complexity: {warn: 15, error: 30}
+  module_cycle: {warn: 0}
 architecture:
   enabled: true
   profile: strict

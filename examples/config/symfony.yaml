@@ -1,0 +1,89 @@
+# PHP: приложение на Symfony со стандартной раскладкой symfony/skeleton.
+# Слои описаны по каталогам src/; каталоги, которых нет в проекте, просто
+# не дают совпадений. Подстройте имена под свой проект.
+config_version: 1
+languages:
+  enabled: [php]
+paths:
+  include: ["**"]
+  exclude:
+    - "tests/**"
+    - "**/Tests/**" # Тесты внутри бандлов.
+    - "**/*Test.php"
+    - "migrations/**" # Doctrine Migrations.
+    - "var/**" # Кеш, логи, сессии.
+    - "public/bundles/**" # assets:install.
+    - "public/build/**" # Webpack Encore.
+    - "config/**" # bundles.php и preload.php описывают сборку, а не структуру.
+    - ".phpstorm.meta.php"
+vendor:
+  paths: ["vendor/**", "node_modules/**"]
+  mode: collapsed
+  parse: lazy
+limits:
+  file_lines: {warn: 400, error: 800}
+  function_lines: {warn: 40, error: 100}
+  functions_per_file: {warn: 20, error: 40}
+  methods_per_class: {warn: 15, error: 30}
+  function_params: {warn: 4, error: 7}
+  cyclomatic_complexity: {warn: 10, error: 20}
+  cognitive_complexity: {warn: 15, error: 30}
+  nesting_depth: {warn: 4, error: 6}
+  types_per_file: {warn: 1, error: 3} # PSR-4: один класс на файл.
+  lcom4: {warn: 2, error: 6} # Несколько независимых групп методов в классе.
+  module_cycle: {warn: 0} # Цикл между namespace; блокирует CI с --fail-on-warn.
+  by_path:
+    # Действия контроллера независимы по замыслу, а аргументы приходят
+    # через внедрение зависимостей и MapRequestPayload.
+    - glob: "src/Controller/**"
+      lcom4: {warn: 10, error: 20}
+      function_params: {warn: 6, error: 10}
+    # Сущности Doctrine: пара getter/setter на каждое поле.
+    - glob: "src/Entity/**"
+      methods_per_class: {warn: 40, error: 80}
+      lcom4: {warn: 30, error: 60}
+sets:
+  controller: ["dir:src/Controller", "dir:src/Command", "dir:src/Form", "dir:src/Twig"]
+  service: ["dir:src/Service", "dir:src/MessageHandler", "dir:src/EventSubscriber", "dir:src/Security"]
+  repository: ["dir:src/Repository"]
+  entity: ["dir:src/Entity"]
+external:
+  capture_args: literal
+  max_arg_length: 160
+  redact: ['(?i)(token|password|secret|api[_-]?key)=[^&\s]+']
+  rules:
+    # Встроенный каталог знает PDO, Doctrine DBAL executeQuery, Guzzle, curl, AMQP.
+    - {category: http, pattern: 'Symfony\Contracts\HttpClient\HttpClientInterface::request', library: symfony-http-client, operation: request}
+    - {category: queue, pattern: 'Symfony\Component\Messenger\MessageBusInterface::dispatch', library: symfony-messenger, operation: dispatch}
+    - {category: mail, pattern: 'Symfony\Component\Mailer\MailerInterface::send', library: symfony-mailer, operation: send}
+    - {category: cache, pattern: 'Symfony\Contracts\Cache\CacheInterface::get', library: symfony-cache, operation: get}
+    - {category: db, pattern: 'Doctrine\ORM\EntityManagerInterface::flush', library: doctrine-orm, operation: flush}
+architecture:
+  enabled: true
+  profile: strict
+  # Направление зависимостей: controller → service → repository → entity.
+  # Сущности не знают о репозиториях и сервисах, сервисы не знают о контроллерах.
+  layers:
+    - name: controller
+      selectors: ["dir:src/Controller", "dir:src/Command", "dir:src/Form", "dir:src/Twig"]
+    - name: service
+      selectors: ["dir:src/Service", "dir:src/MessageHandler", "dir:src/EventSubscriber", "dir:src/Security"]
+    - name: repository
+      selectors: ["dir:src/Repository"]
+    - name: entity
+      selectors: ["dir:src/Entity"]
+  forbidden_dependencies:
+    - {from: entity, to: repository, principle: DIP}
+    - {from: entity, to: service, principle: DIP}
+    - {from: entity, to: controller, principle: DIP}
+    - {from: repository, to: service, principle: DIP}
+    - {from: repository, to: controller, principle: DIP}
+    - {from: service, to: controller, principle: DIP}
+  # Kernel собирает приложение из всех слоёв. Запись действует, только если
+  # его накрывает селектор слоя, например glob:src/**; иначе она безвредна.
+  composition_roots: ["file:src/Kernel.php"]
+cache:
+  enabled: true
+  path: .analyzer-cache
+output:
+  formats: [console]

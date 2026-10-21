@@ -1,18 +1,29 @@
-# PHP: расширенный пример; пути, FQN и пороги адаптируйте под проект.
+# PHP: расширенный пример без привязки к фреймворку или CMS.
+# Пути, FQN и пороги адаптируйте под проект; слои названы по гексагональной
+# схеме, профили для Symfony и Laravel лежат рядом.
 config_version: 1
 languages:
   enabled: [php]
-  extensions: {phtml: php}
+  # php и phtml встроены. Пример для старых проектов с другими расширениями.
+  extensions: {inc: php}
 paths:
   include: ["**"] # Все поддерживаемые файлы выбранного языка, включая корневые.
   exclude:
+    # Тесты и фикстуры. Globs чувствительны к регистру: PHPUnit и phpspec
+    # используют tests/ и spec/, пакеты и бандлы часто Tests/ и Fixtures/.
     - "**/test/**"
     - "**/tests/**"
+    - "**/Tests/**"
+    - "**/spec/**"
     - "**/fixtures/**"
+    - "**/Fixtures/**"
+    - "**/*Test.php"
+    # Сгенерированный код, миграции и файлы IDE.
     - "**/generated/**"
-    - "var/cache/**"
+    - "**/migrations/**"
+    - ".phpstorm.meta.php"
 vendor:
-  paths: ["vendor/**", "**/vendor/**"]
+  paths: ["vendor/**", "**/vendor/**", "node_modules/**"]
   mode: collapsed
   parse: lazy # none запрещает раскрытие зависимостей; full разбирает сразу.
 limits:
@@ -20,33 +31,38 @@ limits:
   function_lines: {warn: 40, error: 100}
   functions_per_file: {warn: 20, error: 40}
   methods_per_class: {warn: 15, error: 30}
+  fields_per_class: {warn: 10, error: 20}
   function_params: {warn: 4, error: 7}
   cyclomatic_complexity: {warn: 10, error: 20}
-  types_per_file: {warn: 5, error: 10}
-  fields_per_class: {warn: 10, error: 20}
-  function_body_lines: {warn: 35, error: 90}
   cognitive_complexity: {warn: 15, error: 30}
-  nesting_depth: {warn: 3, error: 5}
+  nesting_depth: {warn: 4, error: 6}
   return_points: {warn: 4, error: 8}
   inheritance_depth: {warn: 3, error: 5}
-  lcom4: {warn: 1, error: 3}
+  types_per_file: {warn: 1, error: 3} # PSR-1 и PSR-4: один класс на файл.
+  # LCOM4 > 1 означает несколько независимых групп методов. Контроллеры,
+  # DTO и сущности с аксессорами дают высокие значения по замыслу: см. by_path.
+  lcom4: {warn: 2, error: 6}
   fan_in: {warn: 20, error: 40}
   fan_out: {warn: 10, error: 20}
   halstead_volume: {warn: 1000, error: 2000}
   duplicate_functions: {warn: 0, error: 5}
-  module_cycle: {warn: 0, error: 0}
+  # Единственный способ сделать цикл между namespace блокирующим в CI:
+  # архитектурные находки arch_cycle и arch_boundary код выхода не меняют.
+  module_cycle: {error: 0}
   # Все числовые пороги — верхние границы. comment_ratio и
   # maintainability_index не задают минимальную долю/минимальный индекс.
-  by_language:
-    php:
-      function_params: {warn: 5, error: 8}
+  # by_language нужен только при нескольких языках в languages.enabled:
+  # для единственного языка он молча перекрывает общий порог выше.
   by_path:
+    - glob: "src/Presentation/**" # Контроллеры и команды: действия независимы по замыслу.
+      lcom4: {warn: 10, error: 20}
+      function_params: {warn: 6, error: 10}
     - glob: "src/legacy/**" # Замените на каталог существующего долга.
       function_lines: {warn: 80, error: 160}
       cyclomatic_complexity: {warn: 15, error: 30}
   by_entity:
-    # Точный FQN из отчёта metrics; замените на реальную сущность.
-    'App\Service\Worker::run':
+    # Точный FQN из отчёта metrics; для методов — Class::method.
+    'App\Application\Worker::run':
       function_params: {warn: 6, error: 10}
   aggregates:
     "cyclomatic_complexity.p95": {warn: 12, error: 25}
@@ -54,61 +70,57 @@ limits:
 # Иллюстративные каталоги слоёв: замените под структуру своего проекта.
 sets:
   domain: ["dir:src/Domain"]
+  application: ["dir:src/Application"]
   infrastructure: ["dir:src/Infrastructure"]
-  application: ["set:domain", "set:infrastructure", "!glob:**/generated/**"]
+  presentation: ["dir:src/Presentation"]
+  core: ["set:domain", "set:application", "!glob:**/generated/**"]
 external:
   capture_args: literal
   max_arg_length: 160
-  redact: ['(?i)token=[^&\s]+', '(?i)password=[^&\s]+']
+  redact: ['(?i)(token|password|secret|api[_-]?key)=[^&\s]+']
   rules:
-    # Пример сторонней библиотеки; укажите цель вызова своей библиотеки.
+    # Встроенный каталог знает PDO, Doctrine, Guzzle, curl, AMQP. Для своей
+    # библиотеки укажите цель вызова Namespace\Class::method; glob допустим,
+    # вызов через типизированное свойство или фасад тоже распознаётся.
     - category: http
       pattern: 'Acme\Http\Client::send*'
       library: acme-http
       operation: send
-  show_in_hidden_vendor: true # Зарегистрирован; отдельного эффекта пока нет.
 metrics:
-  count_implicit_receiver: false
   count_variadic_parameters: true
   count_private_methods: true
-  count_accessors: true
-  count_nested_functions: true
+  count_accessors: true # Getters и setters считаются методами класса.
+  count_nested_functions: true # Замыкания внутри функций считаются в functions_per_file.
   histogram_bins: 10
 graph:
   max_implementations: 50
 algorithmic_complexity:
   enabled: true
   heuristics: true
-  unknown: info # warn/error требуют большей полноты статического анализа.
-  limits: {warn: "N", error: "N*log(N)"}
-  by_language:
-    php:
-      enabled: true
-      heuristics: true
-      unknown: info
-      limits: {warn: "N", error: "N*log(N)"}
+  unknown: info # Для PHP без статических типов стоимость часто неизвестна.
+  # Линейный проход по коллекции в PHP-приложении — норма, порог от N^2.
+  limits: {warn: "N^2", error: "N^3"}
   by_path:
     - glob: "src/legacy/**"
-      limits: {warn: "N^2", error: "N^3"}
+      limits: {warn: "N^3"}
   by_entity:
-    'App\Service\Worker::run':
+    'App\Application\Worker::run':
       unknown: warn
 architecture:
   enabled: true
   profile: extended # strict — только циклы, явные границы и структурные копии.
   disabled_rules: []
+  # Список заменяет default движка целиком; добавлены PHP-соглашения.
   exclude:
     - "**/test/**"
     - "**/tests/**"
-    - "**/testing/**"
-    - "**/__tests__/**"
-    - "**/integration-tests/**"
+    - "**/Tests/**"
+    - "**/spec/**"
     - "**/fixtures/**"
-    - "**/__fixtures__/**"
+    - "**/Fixtures/**"
     - "**/generated/**"
     - "**/migrations/**"
-    - "**/*.test.*"
-    - "**/*.spec.*"
+    - "**/*Test.php"
   rules:
     arch_cycle: {}
     arch_boundary: {}
@@ -120,16 +132,27 @@ architecture:
     arch_isp: {min_methods: 8, max_usage_ratio: 0.25}
     arch_demeter: {}
     arch_stability: {instability_delta: 0.3}
+  # Слои гексагональной архитектуры: зависимости направлены внутрь, к domain.
   layers:
     - name: domain
       selectors: ["dir:src/Domain"]
+    - name: application
+      selectors: ["dir:src/Application"]
     - name: infrastructure
       selectors: ["dir:src/Infrastructure"]
+    - name: presentation
+      selectors: ["dir:src/Presentation"]
   forbidden_dependencies:
-    - from: domain
-      to: infrastructure
-      principle: DIP
-  composition_roots: ["file:public/index.php"]
+    - {from: domain, to: application, principle: DIP}
+    - {from: domain, to: infrastructure, principle: DIP}
+    - {from: domain, to: presentation, principle: DIP}
+    - {from: application, to: infrastructure, principle: DIP}
+    - {from: application, to: presentation, principle: DIP}
+    - {from: infrastructure, to: presentation, principle: DIP}
+  # Файлы сборки приложения исключаются из проверки границ, только если их
+  # накрывает селектор слоя; вне слоёв зависимость и так не проверяется.
+  # Значения для Symfony и Laravel смотрите в их профилях.
+  composition_roots: []
   max_evidence: 50
 cache:
   enabled: true

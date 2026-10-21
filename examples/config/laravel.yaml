@@ -1,0 +1,84 @@
+# PHP: приложение на Laravel со стандартной раскладкой laravel/laravel.
+# Слои описаны по каталогам app/; каталоги Services и Actions — распространённое
+# соглашение, а не часть скелета. Подстройте имена под свой проект.
+config_version: 1
+languages:
+  enabled: [php]
+paths:
+  include: ["**"]
+  exclude:
+    - "tests/**"
+    - "**/*Test.php"
+    - "database/**" # Миграции, сидеры и фабрики генерируются artisan.
+    - "storage/**" # Скомпилированные Blade-шаблоны, кеш, логи.
+    - "bootstrap/cache/**"
+    - "public/build/**" # Vite.
+    - "config/**" # Массивы настроек описывают сборку, а не структуру.
+    - "_ide_helper*.php"
+    - ".phpstorm.meta.php"
+vendor:
+  paths: ["vendor/**", "node_modules/**"]
+  mode: collapsed
+  parse: lazy
+limits:
+  file_lines: {warn: 400, error: 800}
+  function_lines: {warn: 40, error: 100}
+  functions_per_file: {warn: 20, error: 40}
+  methods_per_class: {warn: 15, error: 30}
+  function_params: {warn: 4, error: 7}
+  cyclomatic_complexity: {warn: 10, error: 20}
+  cognitive_complexity: {warn: 15, error: 30}
+  nesting_depth: {warn: 4, error: 6}
+  types_per_file: {warn: 1, error: 3} # PSR-4: один класс на файл.
+  lcom4: {warn: 2, error: 6} # Несколько независимых групп методов в классе.
+  module_cycle: {warn: 0} # Цикл между namespace; блокирует CI с --fail-on-warn.
+  by_path:
+    # Действия контроллера независимы по замыслу, аргументы приходят
+    # через внедрение зависимостей и Form Request.
+    - glob: "app/Http/Controllers/**"
+      lcom4: {warn: 10, error: 20}
+      function_params: {warn: 6, error: 10}
+    # Модели Eloquent: отношения, scopes и аксессоры не связаны между собой.
+    - glob: "app/Models/**"
+      methods_per_class: {warn: 40, error: 80}
+      lcom4: {warn: 30, error: 60}
+sets:
+  http: ["dir:app/Http", "dir:app/Console", "dir:app/View", "dir:routes"]
+  application: ["dir:app/Services", "dir:app/Actions", "dir:app/Jobs", "dir:app/Events", "dir:app/Listeners", "dir:app/Policies", "dir:app/Rules"]
+  models: ["dir:app/Models"]
+external:
+  capture_args: literal
+  max_arg_length: 160
+  redact: ['(?i)(token|password|secret|api[_-]?key)=[^&\s]+']
+  rules:
+    # Фасады Laravel вызываются статически; glob после :: покрывает все методы.
+    - {category: http, pattern: 'Illuminate\Support\Facades\Http::*', library: laravel-http, operation: request}
+    - {category: db, pattern: 'Illuminate\Support\Facades\DB::*', library: laravel-db, operation: query}
+    - {category: queue, pattern: 'Illuminate\Support\Facades\Queue::*', library: laravel-queue, operation: push}
+    - {category: cache, pattern: 'Illuminate\Support\Facades\Cache::*', library: laravel-cache, operation: get}
+    - {category: mail, pattern: 'Illuminate\Support\Facades\Mail::*', library: laravel-mail, operation: send}
+    - {category: storage, pattern: 'Illuminate\Support\Facades\Storage::*', library: laravel-storage, operation: put}
+architecture:
+  enabled: true
+  profile: strict
+  # Направление зависимостей: http → application → models.
+  # Модели не вызывают сервисы и контроллеры, сервисы не знают о Request и контроллерах.
+  layers:
+    - name: http
+      selectors: ["dir:app/Http", "dir:app/Console", "dir:app/View", "dir:routes"]
+    - name: application
+      selectors: ["dir:app/Services", "dir:app/Actions", "dir:app/Jobs", "dir:app/Events", "dir:app/Listeners", "dir:app/Policies", "dir:app/Rules"]
+    - name: models
+      selectors: ["dir:app/Models"]
+  forbidden_dependencies:
+    - {from: models, to: application, principle: DIP}
+    - {from: models, to: http, principle: DIP}
+    - {from: application, to: http, principle: DIP}
+  # Провайдеры и bootstrap/app.php связывают слои. Запись действует, только
+  # если их накрывает селектор слоя, например glob:app/**; иначе она безвредна.
+  composition_roots: ["file:bootstrap/app.php", "dir:app/Providers"]
+cache:
+  enabled: true
+  path: .analyzer-cache
+output:
+  formats: [console]
